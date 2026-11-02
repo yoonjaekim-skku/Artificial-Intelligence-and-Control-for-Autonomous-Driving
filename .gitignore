@@ -4,3 +4,13 @@ __pycache__/
 
 # VSCode settings
 .vscode/
+
+# Local virtual environments (env/ contains project source code)
+.venv/
+venv/
+.conda/
+conda-env/
+conda-meta/
+.python-version
+
+# Keep requirements.txt, environment.yml and conda-lock files tracked
