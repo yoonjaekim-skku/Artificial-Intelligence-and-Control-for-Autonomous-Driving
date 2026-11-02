@@ -32,4 +32,14 @@
     <flow id="f_A5_A3" type="carDist" from="A5_in1" to="A3_out1" begin="0" end="100000" period="101.22" departLane="random" departSpeed="8.0"/>
     <flow id="f_A5_A4" type="carDist" from="A5_in1" to="A4_out2" begin="0" end="100000" period="404.89" departLane="random" departSpeed="8.0"/>
     <flow id="f_A5_A5" type="carDist" from="A5_in1" to="A5_out1" begin="0" end="100000" period="1349.62" departLane="random" departSpeed="8.0"/>
+    <flow id="lf_RING_A2_A4" type="carDist" from="A2_in2" to="A4_out2" via="RING_A2_A4" begin="0" end="100000" period="60.00" departLane="random" departSpeed="8.0"/>
+    <flow id="lf_RING_A4_A1" type="carDist" from="A4_in2" to="A1_out2" via="RING_A4_A1" begin="0" end="100000" period="90.00" departLane="random" departSpeed="8.0"/>
+    <flow id="lf_RING_A1_A3" type="carDist" from="A1_in2" to="A3_out1" via="RING_A1_A3" begin="0" end="100000" period="45.00" departLane="random" departSpeed="8.0"/>
+    <flow id="lf_RING_A3_A5" type="carDist" from="A3_in1" to="A5_out1" via="RING_A3_A5" begin="0" end="100000" period="45.00" departLane="random" departSpeed="8.0"/>
+    <flow id="lf_RING_A5_A2" type="carDist" from="A5_in1" to="A2_out2" via="RING_A5_A2" begin="0" end="100000" period="60.00" departLane="random" departSpeed="8.0"/>
+    <flow id="lf_OUTER_N" type="carDist" from="A2_in2" to="A4_out2" via="OUTER_N" begin="0" end="100000" period="60.00" departLane="random" departSpeed="8.0"/>
+    <flow id="lf_OUTER_W" type="carDist" from="A4_in2" to="A1_out2" via="OUTER_W" begin="0" end="100000" period="90.00" departLane="random" departSpeed="8.0"/>
+    <flow id="lr_0_A2_A1" type="carDist" from="A2_in2" to="A1_out2" via="OUTER_N OUTER_W" begin="0" end="100000" period="90.00" departLane="random" departSpeed="8.0"/>
+    <flow id="lr_1_A2_A3" type="carDist" from="A2_in2" to="A3_out1" via="OUTER_N OUTER_W RING_A1_A3" begin="0" end="100000" period="120.00" departLane="random" departSpeed="8.0"/>
+    <flow id="lr_2_A1_A5" type="carDist" from="A1_in2" to="A5_out1" via="RING_A1_A3 RING_A3_A5" begin="0" end="100000" period="90.00" departLane="random" departSpeed="8.0"/>
 </routes>

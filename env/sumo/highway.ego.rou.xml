@@ -1,0 +1,66 @@
+<routes>
+    <route id="ego_d_A1_A1" edges="A1_in2 A1_in1 A1_in A1_out A1_out1 A1_out2"/>
+    <route id="ego_d_A1_A2" edges="A1_in2 A1_in1 A1_in A2_out A2_out1 A2_out2"/>
+    <route id="ego_d_A1_A3" edges="A1_in2 RING_A1_A3 A3_out1"/>
+    <route id="ego_d_A1_A4" edges="A1_in2 A1_in1 A1_in A4_out A4_out1 A4_out2"/>
+    <route id="ego_d_A1_A5" edges="A1_in2 A1_in1 A1_in A5_out A5_out1"/>
+    <route id="ego_d_A2_A1" edges="A2_in2 A2_in1 A2_in A1_out A1_out1 A1_out2"/>
+    <route id="ego_d_A2_A2" edges="A2_in2 A2_in1 A2_in A2_out A2_out1 A2_out2"/>
+    <route id="ego_d_A2_A3" edges="A2_in2 A2_in1 A2_in A3_out A3_out1"/>
+    <route id="ego_d_A2_A4" edges="A2_in2 A2_in1 A2_in A4_out A4_out1 A4_out2"/>
+    <route id="ego_d_A2_A5" edges="A2_in2 A2_in1 A2_in A5_out A5_out1"/>
+    <route id="ego_d_A3_A1" edges="A3_in1 A3_in A1_out A1_out1 A1_out2"/>
+    <route id="ego_d_A3_A2" edges="A3_in1 A3_in A2_out A2_out1 A2_out2"/>
+    <route id="ego_d_A3_A3" edges="A3_in1 A3_in A3_out A3_out1"/>
+    <route id="ego_d_A3_A4" edges="A3_in1 A3_in A4_out A4_out1 A4_out2"/>
+    <route id="ego_d_A3_A5" edges="A3_in1 A3_in A5_out A5_out1"/>
+    <route id="ego_d_A4_A1" edges="A4_in2 A4_in1 RING_A4_A1 A1_out1 A1_out2"/>
+    <route id="ego_d_A4_A2" edges="A4_in2 A4_in1 A4_in A2_out A2_out1 A2_out2"/>
+    <route id="ego_d_A4_A3" edges="A4_in2 A4_in1 A4_in A3_out A3_out1"/>
+    <route id="ego_d_A4_A4" edges="A4_in2 A4_in1 A4_in A4_out A4_out1 A4_out2"/>
+    <route id="ego_d_A4_A5" edges="A4_in2 A4_in1 A4_in A5_out A5_out1"/>
+    <route id="ego_d_A5_A1" edges="A5_in1 A5_in A1_out A1_out1 A1_out2"/>
+    <route id="ego_d_A5_A2" edges="A5_in1 RING_A5_A2 A2_out2"/>
+    <route id="ego_d_A5_A3" edges="A5_in1 A5_in A3_out A3_out1"/>
+    <route id="ego_d_A5_A4" edges="A5_in1 A5_in A4_out A4_out1 A4_out2"/>
+    <route id="ego_d_A5_A5" edges="A5_in1 A5_in A5_out A5_out1"/>
+    <route id="ego_r_RING_A2_A4_A2_A1" edges="A2_in2 A2_in1 RING_A2_A4 RING_A4_A1 A1_out1 A1_out2"/>
+    <route id="ego_r_RING_A2_A4_A2_A4" edges="A2_in2 A2_in1 RING_A2_A4 A4_out1 A4_out2"/>
+    <route id="ego_r_RING_A4_A1_A4_A1" edges="A4_in2 A4_in1 RING_A4_A1 A1_out1 A1_out2"/>
+    <route id="ego_r_RING_A1_A3_A1_A1" edges="A1_in2 RING_A1_A3 RING_A3_A5 RING_A5_A2 OUTER_N OUTER_W A1_out2"/>
+    <route id="ego_r_RING_A1_A3_A1_A2" edges="A1_in2 RING_A1_A3 RING_A3_A5 RING_A5_A2 A2_out2"/>
+    <route id="ego_r_RING_A1_A3_A1_A3" edges="A1_in2 RING_A1_A3 A3_out1"/>
+    <route id="ego_r_RING_A1_A3_A1_A4" edges="A1_in2 RING_A1_A3 RING_A3_A5 RING_A5_A2 OUTER_N A4_out2"/>
+    <route id="ego_r_RING_A1_A3_A1_A5" edges="A1_in2 RING_A1_A3 RING_A3_A5 A5_out1"/>
+    <route id="ego_r_RING_A3_A5_A3_A1" edges="A3_in1 RING_A3_A5 RING_A5_A2 OUTER_N OUTER_W A1_out2"/>
+    <route id="ego_r_RING_A3_A5_A3_A2" edges="A3_in1 RING_A3_A5 RING_A5_A2 A2_out2"/>
+    <route id="ego_r_RING_A3_A5_A3_A3" edges="A3_in1 RING_A3_A5 RING_A5_A2 OUTER_N OUTER_W RING_A1_A3 A3_out1"/>
+    <route id="ego_r_RING_A3_A5_A3_A4" edges="A3_in1 RING_A3_A5 RING_A5_A2 OUTER_N A4_out2"/>
+    <route id="ego_r_RING_A3_A5_A3_A5" edges="A3_in1 RING_A3_A5 A5_out1"/>
+    <route id="ego_r_RING_A5_A2_A5_A1" edges="A5_in1 RING_A5_A2 OUTER_N OUTER_W A1_out2"/>
+    <route id="ego_r_RING_A5_A2_A5_A2" edges="A5_in1 RING_A5_A2 A2_out2"/>
+    <route id="ego_r_RING_A5_A2_A5_A3" edges="A5_in1 RING_A5_A2 OUTER_N OUTER_W RING_A1_A3 A3_out1"/>
+    <route id="ego_r_RING_A5_A2_A5_A4" edges="A5_in1 RING_A5_A2 OUTER_N A4_out2"/>
+    <route id="ego_r_RING_A5_A2_A5_A5" edges="A5_in1 RING_A5_A2 OUTER_N OUTER_W RING_A1_A3 RING_A3_A5 A5_out1"/>
+    <route id="ego_r_OUTER_N_A2_A1" edges="A2_in2 OUTER_N OUTER_W A1_out2"/>
+    <route id="ego_r_OUTER_N_A2_A2" edges="A2_in2 OUTER_N OUTER_W RING_A1_A3 RING_A3_A5 RING_A5_A2 A2_out2"/>
+    <route id="ego_r_OUTER_N_A2_A3" edges="A2_in2 OUTER_N OUTER_W RING_A1_A3 A3_out1"/>
+    <route id="ego_r_OUTER_N_A2_A4" edges="A2_in2 OUTER_N A4_out2"/>
+    <route id="ego_r_OUTER_N_A2_A5" edges="A2_in2 OUTER_N OUTER_W RING_A1_A3 RING_A3_A5 A5_out1"/>
+    <route id="ego_r_OUTER_W_A4_A1" edges="A4_in2 OUTER_W A1_out2"/>
+    <route id="ego_r_OUTER_W_A4_A2" edges="A4_in2 OUTER_W RING_A1_A3 RING_A3_A5 RING_A5_A2 A2_out2"/>
+    <route id="ego_r_OUTER_W_A4_A3" edges="A4_in2 OUTER_W RING_A1_A3 A3_out1"/>
+    <route id="ego_r_OUTER_W_A4_A4" edges="A4_in2 OUTER_W RING_A1_A3 RING_A3_A5 RING_A5_A2 OUTER_N A4_out2"/>
+    <route id="ego_r_OUTER_W_A4_A5" edges="A4_in2 OUTER_W RING_A1_A3 RING_A3_A5 A5_out1"/>
+    <route id="ego_r_loop0_A2_A1" edges="A2_in2 OUTER_N OUTER_W A1_out2"/>
+    <route id="ego_r_loop0_A2_A2" edges="A2_in2 OUTER_N OUTER_W RING_A1_A3 RING_A3_A5 RING_A5_A2 A2_out2"/>
+    <route id="ego_r_loop0_A2_A3" edges="A2_in2 OUTER_N OUTER_W RING_A1_A3 A3_out1"/>
+    <route id="ego_r_loop0_A2_A5" edges="A2_in2 OUTER_N OUTER_W RING_A1_A3 RING_A3_A5 A5_out1"/>
+    <route id="ego_r_loop1_A2_A2" edges="A2_in2 OUTER_N OUTER_W RING_A1_A3 RING_A3_A5 RING_A5_A2 A2_out2"/>
+    <route id="ego_r_loop1_A2_A3" edges="A2_in2 OUTER_N OUTER_W RING_A1_A3 A3_out1"/>
+    <route id="ego_r_loop1_A2_A5" edges="A2_in2 OUTER_N OUTER_W RING_A1_A3 RING_A3_A5 A5_out1"/>
+    <route id="ego_r_loop2_A1_A1" edges="A1_in2 RING_A1_A3 RING_A3_A5 RING_A5_A2 OUTER_N OUTER_W A1_out2"/>
+    <route id="ego_r_loop2_A1_A2" edges="A1_in2 RING_A1_A3 RING_A3_A5 RING_A5_A2 A2_out2"/>
+    <route id="ego_r_loop2_A1_A4" edges="A1_in2 RING_A1_A3 RING_A3_A5 RING_A5_A2 OUTER_N A4_out2"/>
+    <route id="ego_r_loop2_A1_A5" edges="A1_in2 RING_A1_A3 RING_A3_A5 A5_out1"/>
+</routes>

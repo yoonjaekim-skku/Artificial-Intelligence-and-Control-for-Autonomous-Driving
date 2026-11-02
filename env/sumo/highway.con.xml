@@ -20,4 +20,18 @@
     <delete from="A5_out" to="A5_in"/>
     <delete from="A5_in1" to="A5_out1"/>
     <delete from="A5_out1" to="A5_in1"/>
+    <delete from="A2_out" to="RING_A2_A4"/>
+    <delete from="RING_A2_A4" to="A4_in"/>
+    <delete from="A4_out" to="RING_A4_A1"/>
+    <delete from="RING_A4_A1" to="A1_in"/>
+    <delete from="A1_out1" to="RING_A1_A3"/>
+    <delete from="RING_A1_A3" to="A3_in"/>
+    <delete from="A3_out" to="RING_A3_A5"/>
+    <delete from="RING_A3_A5" to="A5_in"/>
+    <delete from="A5_out" to="RING_A5_A2"/>
+    <delete from="RING_A5_A2" to="A2_in1"/>
+    <delete from="A2_out1" to="OUTER_N"/>
+    <delete from="OUTER_N" to="A4_in1"/>
+    <delete from="A4_out1" to="OUTER_W"/>
+    <delete from="OUTER_W" to="A1_in1"/>
 </connections>
