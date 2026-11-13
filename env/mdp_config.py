@@ -193,6 +193,12 @@ REWARD = {
     "blocked_speed_frac": 0.7,   # 그리고 내 속도 < vmax×이 값일 때만
                                  # (앞이 가까워도 빠르게 흐르면 막힘 아님)
 
+    # ---- 경로 밖 차선 페널티 ----
+    # 경로로 이어지지 않는 차선에 있고 그 차선 끝이 시야(visibility) 안일 때
+    # 매 스텝 감점. 차선을 바꾸는 즉시 감점이 멈춘다. 0이면 비활성.
+    # 병렬 학습에서는 --set reward.off_route_lane_penalty=0.05 로 켠다.
+    "off_route_lane_penalty": 0.0,
+
     # ---- 차선변경 관련 (원본 Flow 코드의 lc_penalty / rl_action_penalty 대응) ----
     # ★ 커리큘럼: 두 페널티 모두 초기 학습에서는 0으로 둔다.
     #   실측(run_130630): 페널티 0.05 상태에서 p_lane_change가

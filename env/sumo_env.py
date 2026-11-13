@@ -180,6 +180,10 @@ class SumoHighwayEnv(gym.Env):
                                                  -self.connectivity_half_width - 1, -1))
         # 누락된 키는 False: 기존 저장 모델의 관측 레이아웃을 유지한다.
         self.lookahead_connectivity_enabled = bool(mdp_obs.get("lookahead_connectivity_enabled", False))
+        # 추가 연결성이 내다보는 route edge 수. 기본 2는 기존 모델과 같은 관측.
+        # 노형오거리 진입로는 [긴 도로 → 짧은 구간 2개 → 교차로]라서 2로는 긴 도로에서
+        # 회전 차선을 알 수 없다 (예: A1 출발 5차선 중 A4행은 맨 왼쪽만 가능).
+        self.lookahead_edges = int(mdp_obs.get("lookahead_edges", 2))
         # 연결 차선 ID는 정적 정보다. 신호색/진입 가능 시점은 캐시하지 않는다.
         self._lane_successors_cache = {}
         self.destination_enabled = bool(mdp_obs.get("destination_enabled", False))
@@ -504,6 +508,10 @@ class SumoHighwayEnv(gym.Env):
         """이 차선이 ego 경로의 '다음 도로'로 이어지면 True."""
         route = self._api.vehicle.getRoute(self.ego_id)
         idx = self._api.vehicle.getRouteIndex(self.ego_id)
+        # 교차로 내부에서는 route index가 직전 일반 edge를 가리킨다.
+        # 기준 차선이 그다음 edge(_reference_lane)라면 한 칸 앞에서 본다.
+        if 0 <= idx and idx + 1 < len(route) and route[idx + 1] == self._api.lane.getEdgeID(lane_id):
+            idx += 1
         if idx < 0 or idx + 1 >= len(route):
             return True                       # 마지막 도로: 어느 차선이든 도착
         next_edge = route[idx + 1]
@@ -526,6 +534,33 @@ class SumoHighwayEnv(gym.Env):
         except self._api.TraCIException:
             return False
 
+    def _reference_lane(self):
+        """차선 구조 관측의 기준 (edge, 차선 index, 차선 위치)를 반환한다.
+
+        일반 도로에서는 현재 차선 그대로다. 교차로 내부 차선(':'로 시작)에서는
+        그 차선이 이어지는 다음 일반 차선을 기준으로 삼고, 위치는 그 차선 시작점까지
+        남은 거리만큼 음수로 둔다. 그래서 내부 차선을 지나는 동안에도 차선 연결성·밀도
+        값이 앞뒤 도로와 끊김 없이 이어진다. (예전에는 내부 차선에서 모든 차선을
+        '있음·이어짐'으로 고정해, 정책이 이 특이한 입력을 정지 위치 신호로 썼다.)
+        연결을 따라갈 수 없으면 None.
+        """
+        lane = self._api.vehicle.getLaneID(self.ego_id)
+        position = self._api.vehicle.getLanePosition(self.ego_id)
+        if not lane.startswith(":"):
+            return (self._api.lane.getEdgeID(lane),
+                    self._api.vehicle.getLaneIndex(self.ego_id), position)
+        ahead = self._api.lane.getLength(lane) - position
+        for _ in range(8):                    # 내부 차선이 여러 개로 나뉜 경우까지 따라간다
+            links = self._api.lane.getLinks(lane)
+            if not links:
+                return None
+            lane = links[0][0]                # 내부 차선의 진출 연결은 하나뿐이다
+            if not lane.startswith(":"):
+                edge = self._api.lane.getEdgeID(lane)
+                return edge, int(lane[len(edge) + 1:]), -ahead
+            ahead += self._api.lane.getLength(lane)
+        return None
+
     def _lane_connectivity(self, offset: int) -> float:
         """오프셋 차선의 '끊김 정도'를 반환.
 
@@ -539,15 +574,15 @@ class SumoHighwayEnv(gym.Env):
         차선 감소/합류 지점은 "링크 없는 차선의 끝"으로 자연히 감지된다.
         """
         try:
-            edge = self._api.vehicle.getRoadID(self.ego_id)
-            if edge.startswith(":"):          # 교차로(junction) 내부 통과 중
+            reference = self._reference_lane()
+            if reference is None:             # 연결을 못 찾은 교차로 내부: 중립값
                 return 1.0
-            lane_index = self._api.vehicle.getLaneIndex(self.ego_id) + offset
+            edge, ego_index, ego_pos = reference
+            lane_index = ego_index + offset
             if lane_index < 0 or lane_index >= self._api.edge.getLaneNumber(edge):
                 return -1.0                   # 그런 차선이 없음
             lane_id = f"{edge}_{lane_index}"
-            remaining = (self._api.lane.getLength(lane_id)
-                         - self._api.vehicle.getLanePosition(self.ego_id))
+            remaining = self._api.lane.getLength(lane_id) - ego_pos
             if remaining > self.visibility:
                 return 1.0                    # 시야 내에선 계속 이어짐
             if self._lane_follows_route(lane_id):
@@ -586,15 +621,20 @@ class SumoHighwayEnv(gym.Env):
         거리/신호 상태와 독립적인 차선 선택 안내다. 0이어도 중간 도로에서
         차선을 바꿔 진행할 수 있으므로 잘못된 차선 종료 판정에는 사용하지 않는다.
         route의 끝이 가까우면 남아 있는 edge만 확인하고 마지막 edge에서는 1.
-        junction 내부의 route index도 직전 일반 edge를 가리키므로 같은 경로
-        suffix를 사용하되 현재 내부 차선의 실제 진출 연결부터 조회한다.
+        junction 내부에서는 내부 차선이 이어지는 다음 일반 차선(_reference_lane)을
+        기준으로, 그다음 두 route edge까지의 연결을 조회한다.
         """
-        edge = self._api.vehicle.getRoadID(self.ego_id)
-        current_index = self._api.vehicle.getLaneIndex(self.ego_id)
+        reference = self._reference_lane()
+        if reference is None:                 # 연결을 못 찾은 교차로 내부: 중립값
+            return [1.0] * len(self.connectivity_offsets)
+        edge, current_index, _ = reference
         lane_count = self._api.edge.getLaneNumber(edge)
         route = self._api.vehicle.getRoute(self.ego_id)
         route_index = self._api.vehicle.getRouteIndex(self.ego_id)
-        next_edges = route[route_index + 1:route_index + 3]
+        # 교차로 내부라면 기준 차선은 다음 route edge에 있다 (_reference_lane).
+        if route_index + 1 < len(route) and route[route_index + 1] == edge:
+            route_index += 1
+        next_edges = route[route_index + 1:route_index + 1 + self.lookahead_edges]
         values = []
         for offset in self.connectivity_offsets:
             index = current_index + offset
@@ -625,14 +665,14 @@ class SumoHighwayEnv(gym.Env):
         같은 대수여도 밀도가 높게 나온다 → "끊기는 차선에 차가 몰려있음" 신호.
         """
         try:
-            edge = self._api.vehicle.getRoadID(self.ego_id)
-            if edge.startswith(":"):          # 교차로 내부: 중립값
+            reference = self._reference_lane()
+            if reference is None:             # 연결을 못 찾은 교차로 내부: 중립값
                 return 0.0
-            lane_index = self._api.vehicle.getLaneIndex(self.ego_id) + offset
+            edge, ego_index, ego_pos = reference
+            lane_index = ego_index + offset
             if lane_index < 0 or lane_index >= self._api.edge.getLaneNumber(edge):
                 return 1.0                    # 차선 없음 = 꽉 참 취급
             lane_id = f"{edge}_{lane_index}"
-            ego_pos = self._api.vehicle.getLanePosition(self.ego_id)
             remaining = self._api.lane.getLength(lane_id) - ego_pos
             links = self._api.lane.getLinks(lane_id)
 
@@ -913,6 +953,19 @@ class SumoHighwayEnv(gym.Env):
             self._green_stop_since = (signal, self.step_count)
         elapsed = (self.step_count - self._green_stop_since[1]) * self.step_length
         return coef if elapsed >= float(self.rw.get("green_stop_grace_seconds", 1.0)) else 0.0
+
+    def _late_brake_penalty(self, signal, speed):
+        """적신호 앞에서 정지선까지 서는 데 필요한 감속이 기준을 넘으면 감점. 0이면 비활성.
+
+        정지 위치 감점만 있으면 '최대한 늦게, 가깝게' 서는 쪽으로 학습되어
+        정지선을 1m 안팎으로 넘는 위반이 생긴다 (A2 진입로). 미리 부드럽게 서게 한다.
+        """
+        coef = float(self.rw.get("late_brake_penalty_coef", 0.0))
+        if coef <= 0 or signal is None or signal[3].lower() != "r":
+            return 0.0
+        limit = float(self.rw.get("late_brake_decel", 2.5))     # m/s², 편안한 감속 기준
+        required = speed * speed / (2.0 * max(signal[2], 0.1))  # v² / 2d
+        return coef * float(np.clip((required - limit) / limit, 0.0, 1.0))
 
     def _destination_observation(self):
         """경로의 마지막 edge에서 목적지를 읽어 설정 순서의 one-hot을 반환한다."""
@@ -1261,6 +1314,7 @@ class SumoHighwayEnv(gym.Env):
             reward += red_safe_zone_first_reward + red_safe_zone_hold_reward
             green_stop_penalty = self._green_stop_penalty(signals_after, ego_speed)
             reward -= green_stop_penalty
+            reward -= self._late_brake_penalty(red_signal, ego_speed)
             exempt_close = (red_visible and ego_speed <=
                             float(self.rw.get("signal_wait_speed", 0.5)))
             if (not exempt_close and ego_gap is not None and
@@ -1277,6 +1331,16 @@ class SumoHighwayEnv(gym.Env):
                     and ego_speed < float(self.rw.get("blocked_speed_frac", 0.7))
                         * self.vmax):
                 reward -= bp
+
+            # ---- 경로 밖 차선 페널티: 차선을 '확실히' 바꾸도록 만드는 신호 ----
+            # 경로로 이어지지 않는 차선에 있고 그 끝이 시야 안에 들어온 동안
+            # (= 현재 차선 연결성 관측이 1 미만인 동안) 매 스텝 감점한다.
+            # 이게 없으면 차선 끝 5m 밖에 서 있는 것은 감점이 전혀 없어서,
+            # 정책이 "서서 우연한 차선변경을 기다리기"를 배운다 (학습 중에는
+            # 표본 추출로 빠져나오지만 결정적 평가에서는 영원히 멈춰 있음).
+            orp = float(self.rw.get("off_route_lane_penalty", 0.0))
+            if orp > 0.0 and self._lane_connectivity(0) < 1.0:
+                reward -= orp
 
             # ---- 차선변경 보상 항 ----
             # lane_change        : 이번 스텝에 policy가 낸 양자화 명령 (-1/0/+1)
