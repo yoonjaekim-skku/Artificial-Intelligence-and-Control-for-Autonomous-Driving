@@ -8,7 +8,6 @@ import json
 from pathlib import Path
 import sys
 from tempfile import TemporaryDirectory
-import xml.etree.ElementTree as ET
 
 import matplotlib
 matplotlib.use("Agg")
@@ -22,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from algorithms.ppo import PPO
 from env import road_builder
+from env.ego_routes import read_ego_route_groups
 from env.parallel_sumo import ParallelSumo
 from env.parallel_traffic import TrafficCurriculum
 from test import load_saved_configs
@@ -183,11 +183,10 @@ def main():
     with TemporaryDirectory(prefix="sumo-evaluation-") as directory:
         root = Path(directory)
         config = road_builder.build(road["ROAD"], road["EGO"], road["TRAFFIC"], str(root / "sumo"))
-        route_file = root / "sumo/highway.ego.rou.xml"
-        routes = sorted(route.get("id") for route in ET.parse(route_file).getroot().findall("route")
-                        if route.get("id").startswith(("ego_d_", "ego_r_")))
-        if len(routes) != 27 or sum(route.startswith("ego_d_") for route in routes) != 22:
-            parser.error("경로 평가에는 직접 경로 22개와 링 경로 5개가 필요합니다.")
+        non_ring_routes, ring_routes = read_ego_route_groups(root / "sumo/highway.ego.rou.xml")
+        if (len(non_ring_routes), len(ring_routes)) != (18, 5):
+            parser.error("평가에는 Ring 미경유 18개와 Ring 경유 5개의 고유 경로가 필요합니다.")
+        routes = non_ring_routes + ring_routes
         kwargs = dict(cfg_path=config, road=road["ROAD"], ego=road["EGO"], mdp_sim=mdp["SIMULATION"],
                       mdp_obs=mdp["OBSERVATION"], action=mdp["ACTION"], reward=training["REWARD"],
                       traffic=road["TRAFFIC"])
@@ -235,8 +234,8 @@ def main():
         },
         "groups": {
             "all": _summarize(rows),
-            "direct_od": _summarize([row for row in rows if row["route"].startswith("ego_d_")]),
-            "explicit_ring": _summarize([row for row in rows if row["route"].startswith("ego_r_")]),
+            "non_ring": _summarize([row for row in rows if row["route"] in non_ring_routes]),
+            "ring": _summarize([row for row in rows if row["route"] in ring_routes]),
         },
     }
     (out / "evaluation_summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")

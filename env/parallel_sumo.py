@@ -10,6 +10,7 @@ import xml.etree.ElementTree as ET
 
 import numpy as np
 
+from env.ego_routes import group_unique_ego_routes
 from env.sumo_env import SumoHighwayEnv
 from env.parallel_traffic import TrafficSchedule, parse_traffic_flows
 
@@ -126,7 +127,7 @@ def _build_replicas(config, directory, count, step_length, randomize_signals,
     ET.SubElement(inputs, "route-files", value=routes.name)
     result = directory / "parallel.sumocfg"
     ET.ElementTree(root).write(result, encoding="utf-8")
-    return str(result), ego_routes, signal_ids, signal_end_ticks, traffic_flows
+    return str(result), ego_routes, signal_ids, signal_end_ticks, traffic_flows, group_unique_ego_routes(original_routes)
 
 
 class _ReplicaEgo(SumoHighwayEnv):
@@ -171,7 +172,8 @@ class ParallelSumo:
             raise ValueError("ParallelSumo requires a headless intersection without global warm-up")
         if randomize_signals and not self.prototype.signal_enabled:
             raise ValueError("Randomized signals require signal observations")
-        self.config, self.route_entries, self.signal_ids, self.signal_end_ticks, self.traffic_flows = (
+        (self.config, self.route_entries, self.signal_ids, self.signal_end_ticks,
+         self.traffic_flows, self.route_groups) = (
             _build_replicas(env_kwargs["cfg_path"], directory, num_envs, self.prototype.step_length,
                             randomize_signals, traffic_curriculum,
                             self.prototype.traffic.get("vehs_per_hour", 0)))
@@ -235,7 +237,7 @@ class ParallelSumo:
         if ego.present:
             libsumo.vehicle.remove(ego.ego_id)
         if route is None:
-            route = ego._sample_ego_route(self.routes) if ego.ego_route_random else "r0"
+            route = ego._sample_ego_route(self.route_groups) if ego.ego_route_random else "r0"
         ego.signal_offset_s = None
         if self.signal_ids:
             offset = ego.signal_random.integers(self.signal_end_ticks[-1]) if signal_tick is None else signal_tick

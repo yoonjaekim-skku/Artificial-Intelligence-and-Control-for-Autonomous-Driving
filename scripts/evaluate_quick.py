@@ -1,4 +1,4 @@
-"""Evaluate 27 routes at 50 fixed signal offsets across independent SUMO workers."""
+"""Evaluate 23 unique routes at 50 fixed signal offsets across independent SUMO workers."""
 
 import argparse
 from collections import Counter
@@ -11,7 +11,6 @@ from pathlib import Path
 import sys
 from tempfile import TemporaryDirectory
 from time import perf_counter
-import xml.etree.ElementTree as ET
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -23,6 +22,7 @@ from matplotlib.patches import Patch
 
 from algorithms.ppo import PPO
 from env import road_builder
+from env.ego_routes import read_ego_route_groups
 from env.parallel_sumo import ParallelSumo
 from env.parallel_traffic import TrafficCurriculum
 from test import load_saved_configs
@@ -188,11 +188,10 @@ def main():
     with TemporaryDirectory(prefix="sumo-quick-eval-") as directory:
         root = Path(directory)
         config = road_builder.build(road["ROAD"], road["EGO"], road["TRAFFIC"], str(root / "base"))
-        routes = sorted(node.get("id") for node in
-                        ET.parse(root / "base/highway.ego.rou.xml").getroot().findall("route")
-                        if node.get("id").startswith(("ego_d_", "ego_r_")))
-        if len(routes) != 27 or sum(r.startswith("ego_d_") for r in routes) != 22:
-            parser.error("평가에는 직접 경로 22개와 순환 경로 5개가 필요합니다.")
+        non_ring_routes, ring_routes = read_ego_route_groups(root / "base/highway.ego.rou.xml")
+        if (len(non_ring_routes), len(ring_routes)) != (18, 5):
+            parser.error("평가에는 Ring 미경유 18개와 Ring 경유 5개의 고유 경로가 필요합니다.")
+        routes = non_ring_routes + ring_routes
         chunks = np.array_split(TICKS, args.num_workers)
         with ProcessPoolExecutor(max_workers=args.num_workers, mp_context=get_context("spawn")) as pool:
             jobs = [pool.submit(_evaluate_worker, model, config, root / f"worker_{i}", saved, vph,

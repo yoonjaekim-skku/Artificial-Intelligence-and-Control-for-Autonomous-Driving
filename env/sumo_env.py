@@ -25,6 +25,8 @@ import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
 
+from env.ego_routes import group_unique_ego_routes
+
 # SUMO 설치 폴더의 tools/ 안에 traci, sumolib 파이썬 모듈이 들어있다.
 # pip로도 설치했지만, 버전 불일치를 피하려면 SUMO_HOME 쪽을 우선 경로에 추가.
 #
@@ -422,19 +424,15 @@ class SumoHighwayEnv(gym.Env):
         self._api.vehicle.setLaneChangeMode(self.ego_id, 0)
 
     def _choose_ego_route(self) -> str:
-        """이번 에피소드에 ego 가 탈 경로 이름을 고른다.
+        """고유 경로를 실제 순환도로 통과 여부에 따라 뽑는다."""
+        if not self.ego_route_random:
+            return "r0"
+        routes = {rid: self._api.route.getEdges(rid) for rid in self._api.route.getIDList()
+                  if rid.startswith(("ego_d_", "ego_r_"))}
+        return self._sample_ego_route(group_unique_ego_routes(routes))
 
-        road_builder 가 highway.ego.rou.xml 에 저장한 후보 중에서:
-          ego_d_* : 교차로를 바로 지나는 경로
-          ego_r_* : 원형도로를 거치는 경로
-        ring_prob 확률로 ego_r_* 에서, 나머지는 ego_d_* 에서 하나를 무작위로 뽑는다.
-        랜덤이 꺼져 있거나 후보가 없으면 기본 경로 r0.
-        """
-        return self._sample_ego_route(self._api.route.getIDList()) if self.ego_route_random else "r0"
-
-    def _sample_ego_route(self, ids):
-        direct = [r for r in ids if r.startswith("ego_d_")]
-        ring = [r for r in ids if r.startswith("ego_r_")]
+    def _sample_ego_route(self, route_groups):
+        direct, ring = route_groups
         rng = self.np_random
         if ring and (not direct or rng.random() < self.ego_ring_prob):
             return str(rng.choice(ring))
