@@ -67,7 +67,22 @@ def main():
     parser.add_argument("--eval-interval", type=int, default=0,
                         help="정기 평가 간격 (iteration 수, 기본값 0: 비활성화)")
     parser.add_argument("--results-dir", type=Path, default=Path(BASE) / RESULTS_DIR)
+    parser.add_argument("--set", action="append", default=[], metavar="GROUP.KEY=VALUE",
+                        help="파일 수정 없이 설정 덮어쓰기 (여러 번 사용 가능). GROUP은 reward / obs / hparams, "
+                             "VALUE는 JSON. 예: --set reward.off_route_lane_penalty=0.05 --set hparams.seed=1")
+    parser.add_argument("--name", help="결과 폴더 이름 뒤에 붙일 실험 이름")
     args = parser.parse_args()
+    overrides = {}
+    for item in args.set:
+        target, _, value = item.partition("=")
+        group, _, key = target.partition(".")
+        if group not in ("reward", "obs", "hparams") or not key or not value:
+            parser.error(f"--set 형식 오류: {item} (예: reward.off_route_lane_penalty=0.05)")
+        try:
+            overrides.setdefault(group, {})[key] = json.loads(value)
+        except json.JSONDecodeError:
+            parser.error(f"--set 값은 JSON이어야 합니다: {item}")
+    HPARAMS.update(overrides.get("hparams", {}))
     randomize_departures = args.randomize_departures == "True"
     if args.init_model is not None:
         args.init_model = args.init_model.resolve()
@@ -89,10 +104,13 @@ def main():
     road_config.configure_parallel_training(args.phase)
     curriculum = TrafficCurriculum() if args.phase == 2 else None
     # Reuse the existing signal reward and 49-dimensional policy in both phases.
-    reward = {**REWARD, **SIGNAL_STOP_REWARDS}
-    observation = dict(OBSERVATION, destination_enabled=False, signal_count=1, signal_enabled=True)
+    reward_overrides = {**SIGNAL_STOP_REWARDS, **overrides.get("reward", {})}
+    reward = {**REWARD, **reward_overrides}
+    observation = {**OBSERVATION, "destination_enabled": False, "signal_count": 1,
+                   "signal_enabled": True, **overrides.get("obs", {})}
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    run_dir = args.results_dir.resolve() / f"parallel_{args.phase}_{timestamp}"
+    run_name = f"parallel_{args.phase}_{timestamp}" + (f"_{args.name}" if args.name else "")
+    run_dir = args.results_dir.resolve() / run_name
     run_dir.mkdir(parents=True)
     snapshot_configs(run_dir)
     for path in (run_dir / "mdp_config.py", run_dir / "source/env/mdp_config.py"):
@@ -103,7 +121,9 @@ def main():
             file.write(f"\nconfigure_parallel_training({args.phase})\n")
     for path in (run_dir / "train.py", run_dir / "source/train.py"):
         with path.open("a", encoding="utf-8") as file:
-            file.write(f"\nREWARD.update({SIGNAL_STOP_REWARDS!r})\n")
+            file.write(f"\nREWARD.update({reward_overrides!r})\n")
+            if overrides.get("hparams"):
+                file.write(f"HPARAMS.update({overrides['hparams']!r})\n")
     for directory in (run_dir, run_dir / "source"):
         shutil.copy2(__file__, directory)
     total_steps = rollout_steps * args.iterations
@@ -131,6 +151,7 @@ def main():
             "periodic_eval_traffic_vph": 800 if curriculum and args.eval_interval else 0,
             "ring_route_probability": road_config.NOHYEONG["ego_routes"]["ring_prob"],
             "initialization": "random" if args.init_model is None else str(args.init_model),
+            "overrides": overrides,
         }, file, indent=2)
 
     config = road_builder.build(ROAD, EGO, TRAFFIC, str(run_dir / "sumo"))
