@@ -42,6 +42,19 @@ class StopClearanceTests(unittest.TestCase):
             result = self.env.get_stop_clearance()
         self.assertEqual(result, {"stop_clearance_m": None, "stop_reference": None})
 
+    def test_park_penalty_only_when_slow_and_short_of_target(self):
+        env = self.env
+        env.signal_visibility = 100.0
+        env.rw = {"red_park_penalty_coef": 0.1, "red_park_scale": 10.0,
+                  "red_park_max_speed": 2.0, "red_stop_margin": 1.5}
+        self.vehicle.getLeader.return_value = None
+        with patch("env.sumo_env.traci", SimpleNamespace(vehicle=self.vehicle)):
+            self.assertAlmostEqual(env._red_park_penalty(("tls", 0, 6.5, "r"), 0.0), 0.05)
+            self.assertAlmostEqual(env._red_park_penalty(("tls", 0, 40.0, "r"), 1.0), 0.1)   # 상한
+            self.assertEqual(env._red_park_penalty(("tls", 0, 6.5, "r"), 5.0), 0.0)          # 접근 중
+            self.assertEqual(env._red_park_penalty(("tls", 0, 1.0, "r"), 0.0), 0.0)          # 목표 안쪽
+            self.assertEqual(env._red_park_penalty(("tls", 0, 6.5, "G"), 0.0), 0.0)          # 초록불
+
     def test_evaluation_keeps_last_stop_after_driving_again(self):
         stats = _DrivingStats(1)
         stats.record(0, 0, False, {"stop_clearance_m": 12.0, "stop_reference": "stop_line"})

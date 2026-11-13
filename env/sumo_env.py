@@ -254,7 +254,10 @@ class SumoHighwayEnv(gym.Env):
         self.obs_offsets = (+2, +1, 0, -1, -2)
         n_lanes_view = len(self.obs_offsets)
         self.obs_dim = 1 + n_lanes_view * 4 + len(self.connectivity_offsets) + n_lanes_view
-        self.obs_dim += 5 * self.signal_count if self.signal_enabled else 0
+        # 정지선 근처 정밀 거리(선택): 신호당 1차원 추가. 기본 0 = 기존 레이아웃 유지.
+        self.signal_fine_scale = float(mdp_obs.get("signal_fine_distance_scale", 0.0))
+        self._signal_obs_size = 5 + (1 if self.signal_fine_scale > 0 else 0)
+        self.obs_dim += self._signal_obs_size * self.signal_count if self.signal_enabled else 0
         self.obs_dim += len(self.connectivity_offsets) if self.lookahead_connectivity_enabled else 0
         self.obs_dim += len(self.destination_arms) if self.destination_enabled else 0
         self.observation_space = spaces.Box(-1.0, 1.0, shape=(self.obs_dim,),
@@ -786,12 +789,18 @@ class SumoHighwayEnv(gym.Env):
                      if signal[3].lower() == "r"), None)
 
     def _signal_observation(self, signal):
+        # 정밀 거리: 거리/visibility(100m)로는 1m가 0.01이라 정지선 앞 미세 조정이 어렵다.
+        # signal_fine_distance_scale(m) 이내를 0~1로 다시 펼친 값을 덧붙인다.
+        fine = self.signal_fine_scale > 0
         if signal is None or signal[2] > self.signal_visibility:
-            return [1.0, 0.0, 0.0, 0.0, 1.0]
+            return [1.0, 0.0, 0.0, 0.0, 1.0] + ([1.0] if fine else [])
         color = signal[3].lower()
         index = {"g": 1, "y": 2, "r": 3}.get(color, 0)
         one_hot = [float(i == index) for i in range(4)]
-        return one_hot + [float(np.clip(signal[2] / self.signal_visibility, 0, 1))]
+        obs = one_hot + [float(np.clip(signal[2] / self.signal_visibility, 0, 1))]
+        if fine:
+            obs.append(float(np.clip(signal[2] / self.signal_fine_scale, 0, 1)))
+        return obs
 
     def _red_stop_penalty(self, signal):
         """관측된 적신호까지의 이동 여유에 비례한 감점. 속도 조건은 두지 않는다."""
@@ -808,6 +817,24 @@ class SumoHighwayEnv(gym.Env):
         if scale <= 0:
             raise ValueError("red_stop_distance_scale must be positive")
         return coef * float(np.clip(min(front_room, stop_room) / scale, 0.0, 1.0))
+
+    def _red_park_penalty(self, signal, speed):
+        """적신호에서 '멈춰 있는 동안' 목표 정차 위치까지 남은 거리에 비례한 감점. 0이면 비활성.
+
+        _red_stop_penalty 는 달리는 중에도 붙어서 크게 키우면 접근 자체가 손해가 된다
+        (coef 0.2 에서 학습 붕괴). 이 항은 느릴 때(red_park_max_speed 이하)만 붙으므로
+        접근은 공짜이고, 목표보다 멀리 '주차'한 상태만 비용이 된다. 목표 위치는 다른 항과
+        같은 _red_stop_surplus (정지선 - red_stop_margin, 또는 앞차 - red_stop_safe_gap).
+        """
+        coef = float(self.rw.get("red_park_penalty_coef", 0.0))
+        if (coef <= 0 or signal is None or signal[3].lower() != "r"
+                or signal[2] > self.signal_visibility
+                or speed > float(self.rw.get("red_park_max_speed", 2.0))):
+            return 0.0
+        surplus = self._red_stop_surplus(signal)
+        if surplus <= 0:
+            return 0.0
+        return coef * min(surplus / float(self.rw.get("red_park_scale", 10.0)), 1.0)
 
     def _red_stop_clearance_reward(self, signal, speed):
         """Reward a safe, small gap to the next red stop line or a nearer leader."""
@@ -1309,6 +1336,7 @@ class SumoHighwayEnv(gym.Env):
             red_stopped_brake_penalty = self._red_stopped_brake_penalty(
                 signals_before[0] if signals_before else None, signal_after, speed_before, accel_raw)
             reward -= red_stopped_brake_penalty
+            reward -= self._red_park_penalty(signal_after, ego_speed)
             red_safe_zone_first_reward, red_safe_zone_hold_reward = self._red_safe_zone_rewards(
                 signal_after, ego_speed)
             reward += red_safe_zone_first_reward + red_safe_zone_hold_reward
