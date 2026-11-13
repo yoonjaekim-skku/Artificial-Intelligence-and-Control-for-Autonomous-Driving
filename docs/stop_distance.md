@@ -1,6 +1,6 @@
 # 빨간불 정지 거리 개선 (정지선 0~3m에 서기)
 
-제혁님 `parallel_train` 최신 코드(경로 중복 수정 `ebafef3` 포함) 위에서 작업했다. 신호 O, 배경 차량 X.
+제혁님 `parallel_train`의 11월 13일 오전 11:13 커밋(`ebafef3` "Fix episode route sampling", 경로 중복 수정) 위에서 작업했다. 신호 O, 배경 차량 X.
 
 ## 결과
 
